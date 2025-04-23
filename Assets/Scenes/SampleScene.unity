@@ -446,6 +446,13 @@ MonoBehaviour:
   slideSpeed: 20
   acceleration: 5
   frictionBoost: 2
+  JOSboost: 15
+  maxStamina: 20
+  staminaRegenDelay: 2
+  staminaRegenRate: 40
+  staminaDepletRate: 50
+  timeSinceLastSlide: 0
+  currentStamina: 0
   jumpForce: 10
   gravity: -13
   slamVel: -80
@@ -455,8 +462,7 @@ MonoBehaviour:
     isSprinting: 0
     isSprintOnJump: 0
     isJumpOnSlide: 0
-    velocity_y: 0
-    velocity_x: 0
+    velocity: 0
     currentMoveDirection: {x: 0, y: 0, z: 0}
     targetMoveDirection: {x: 0, y: 0, z: 0}
     airMoveDirection: {x: 0, y: 0, z: 0}

@@ -14,6 +14,17 @@ namespace Game.player
         public float slideSpeed = 20f;
         public float acceleration = 5f;
         public float frictionBoost = 2f;
+        public float JOSboost = 15f;
+
+        [Header("Stamina Settings")]
+        public float maxStamina = 20f;
+        public float staminaRegenDelay = 2f;
+        public float staminaRegenRate = 40;
+        public float staminaDepletRate = 50;
+
+        public float timeSinceLastSlide;
+        public float currentStamina;
+
         [Header("Jump & gravity")]
         public float jumpForce = 10f;
         public float gravity = -13f;
@@ -58,9 +69,8 @@ namespace Game.player
             sprintControl = playerInput.actions["Sprint"];
             slideControl = playerInput.actions["Slide"];
 
-            
+            currentStamina = maxStamina;
         }
-
         public void Update()
         {
             status.isGrounded = characterController.isGrounded;
@@ -69,11 +79,11 @@ namespace Game.player
             Jumpment();
             Sprinting();
             Sliding();
+            SlideStamina();
             Slam();
             CheckCeiling();
             CheckVelocity();
         }
-
         private void Movement()
         {
             status.isGrounded = characterController.isGrounded;
@@ -135,7 +145,7 @@ namespace Game.player
                     status.airMoveDirection = status.currentMoveDirection.normalized;
                     if (status.isSprinting)
                     {
-                        status.airMoveDirection += transform.forward * frictionBoost;
+                        status.airMoveDirection += transform.forward * frictionBoost ;
                         status.isSprintOnJump = true;
                     }
                     else
@@ -159,7 +169,6 @@ namespace Game.player
                 }
             }
         }
-        
         void Sprinting()
         {
             Vector2 moveInp = moveControl.ReadValue<Vector2>();
@@ -177,7 +186,7 @@ namespace Game.player
             Vector2 moveInp = moveControl.ReadValue<Vector2>();
             if (status.isGrounded && status.velocity >= 6)
             {
-                status.isSliding = slideControl.ReadValue<float>() > 0.5f && !status.isGrounded == false;
+                status.isSliding = slideControl.ReadValue<float>() > 0.5f && !status.isGrounded == false && currentStamina > 0;
             }
             else
             {
@@ -193,7 +202,27 @@ namespace Game.player
         }
         void SlideStamina()
         {
-
+            Vector2 moveInput = moveControl.ReadValue<Vector2>();
+            bool isMoving = moveInput.magnitude > 0.1f;
+            if (status.isSliding && isMoving)
+            {
+                currentStamina -= staminaDepletRate * Time.deltaTime;
+                currentStamina = Mathf.Clamp(currentStamina, 0, maxStamina);
+                timeSinceLastSlide = 0;
+            }
+            else
+            {
+                timeSinceLastSlide += Time.deltaTime;
+                if (timeSinceLastSlide >= staminaRegenDelay)
+                {
+                    currentStamina += staminaRegenRate * Time.deltaTime;
+                    currentStamina = Mathf.Clamp(currentStamina, 0, maxStamina);
+                }
+            }
+            if (currentStamina <= 0)
+            {
+                status.isSliding = false;
+            }
         }
         private void CheckCeiling()
         {
