@@ -1,8 +1,11 @@
 using System;
 using System.Runtime.CompilerServices;
 using Unity.VisualScripting;
+using UnityEditor.ShaderGraph.Serialization;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.XR;
 
 namespace Game.player
 {
@@ -11,17 +14,20 @@ namespace Game.player
         [Header("Movement Settings")]
         public float movementSpeed = 5f;
         public float sprintSpeed = 8f;
-        public float slideSpeed = 20f;
-        public float acceleration = 5f;
-        public float frictionBoost = 2f;
-        public float JOSboost = 15f;
+        public float slideSpeed = 12f;
+        public float acceleration = 2f;
+        public float frictionBoost = 5f;
+        public float airSlideMove = 14f;
+        public float rotateBoost = 20f;
+
+        [Header("Rotation settings")]
+        public float rotateSpeed = 5f;
 
         [Header("Stamina Settings")]
         public float maxStamina = 20f;
         public float staminaRegenDelay = 2f;
         public float staminaRegenRate = 40;
         public float staminaDepletRate = 50;
-
         public float timeSinceLastSlide;
         public float currentStamina;
 
@@ -35,10 +41,11 @@ namespace Game.player
             public bool isGrounded;
             public bool isSliding;
             public bool isSprinting;
-            public bool isSprintOnJump;
+            public bool isJumpOnSprint;
             public bool isJumpOnSlide;
 
             public float velocity;
+            public float currentSpeed;
 
             public Vector3 currentMoveDirection;
             public Vector3 targetMoveDirection;
@@ -46,13 +53,16 @@ namespace Game.player
             public Vector3 boostDirection;
             public Vector3 slideMoveDirection;
             public Vector3 verticalVelocity;
+            public Vector3 horizontalVelocity;
         }
         [Header("Debugger")]
         [SerializeField] private Debug status;
 
         private Vector3 previousPosition;
+        private Vector3 previousHorizontalPosition;
         private CharacterController characterController;
         private PlayerInput playerInput;
+        private float moveSpeed;
 
         [HideInInspector] public InputAction moveControl;
         [HideInInspector] public InputAction jumpControl;
@@ -76,6 +86,7 @@ namespace Game.player
             status.isGrounded = characterController.isGrounded;
 
             Movement();
+            Rotation();
             Jumpment();
             Sprinting();
             Sliding();
@@ -94,7 +105,7 @@ namespace Game.player
             }
 
             Vector2 moveinput = moveControl.ReadValue<Vector2>();
-            
+
             if (status.isSliding)
             {
                 Vector2 lastMoveinput = moveinput.normalized;
@@ -128,12 +139,41 @@ namespace Game.player
                 status.slideMoveDirection = Vector3.Lerp(status.slideMoveDirection, slideTargetDirection, frictionBoost * Time.deltaTime);
                 status.currentMoveDirection = Vector3.Lerp(status.currentMoveDirection, slideTargetDirection, frictionBoost * Time.deltaTime);
             }
-            float moveSpeed = status.isSprinting ? sprintSpeed : (status.isSliding ? slideSpeed : movementSpeed);
+            if (status.isGrounded == false && status.isJumpOnSlide)
+            {
+                moveSpeed = airSlideMove;
+            }
+            else
+            {
+                moveSpeed = status.isSprinting ? sprintSpeed : (status.isSliding ? slideSpeed : movementSpeed);
+            }
+            
             characterController.Move(status.currentMoveDirection * moveSpeed * Time.deltaTime);
 
             status.verticalVelocity.y += gravity * Time.deltaTime;
             characterController.Move(status.verticalVelocity * Time.deltaTime);
             transform.rotation.Equals(status.targetMoveDirection);
+        }
+        void Rotation()
+        {
+            if (status.isGrounded == false)
+            {
+                if (status.isJumpOnSlide || status.isJumpOnSprint) 
+                { 
+                    rotateSpeed = rotateBoost;
+                }
+            }
+            else
+            {
+                rotateSpeed = 5;
+            }
+
+            if (status.currentMoveDirection != Vector3.zero)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(status.currentMoveDirection);
+
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+            }
         }
         void Jumpment()
         {
@@ -145,12 +185,12 @@ namespace Game.player
                     status.airMoveDirection = status.currentMoveDirection.normalized;
                     if (status.isSprinting)
                     {
-                        status.airMoveDirection += transform.forward * frictionBoost ;
-                        status.isSprintOnJump = true;
+                        status.airMoveDirection += transform.forward * frictionBoost;
+                        status.isJumpOnSprint = true;
                     }
                     else
                     {
-                        status.isSprintOnJump = false;
+                        status.isJumpOnSprint = false;
                     }
                     if (status.isSliding)
                     {
@@ -165,7 +205,7 @@ namespace Game.player
                 else
                 {
                     status.airMoveDirection = Vector3.zero;
-                    status.isSprintOnJump = false;
+                    status.isJumpOnSprint = false;
                 }
             }
         }
@@ -184,7 +224,7 @@ namespace Game.player
         void Sliding()
         {
             Vector2 moveInp = moveControl.ReadValue<Vector2>();
-            if (status.isGrounded && status.velocity >= 6)
+            if (status.isGrounded && status.currentSpeed >= 6)
             {
                 status.isSliding = slideControl.ReadValue<float>() > 0.5f && !status.isGrounded == false && currentStamina > 0;
             }
@@ -193,7 +233,7 @@ namespace Game.player
                 status.isSliding = false;
             }
         }
-       void Slam()
+        void Slam()
         {
             if (status.isGrounded == false && slideControl.triggered)
             {
@@ -234,8 +274,12 @@ namespace Game.player
         private void CheckVelocity()
         {
             Vector3 currentPosition = transform.position;
+            Vector3 currentHorizontalPosition = new Vector3(currentPosition.x, 0f, currentPosition.z);
             status.velocity = Vector3.Distance(currentPosition, previousPosition) / Time.deltaTime;
+            status.currentSpeed = Vector3.Distance(currentHorizontalPosition, previousHorizontalPosition) / Time.deltaTime;
             previousPosition = currentPosition;
+            previousHorizontalPosition = currentHorizontalPosition;
         }
     }
 }
+
