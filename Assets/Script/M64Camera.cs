@@ -1,10 +1,14 @@
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Timeline;
+
 
 public class Mario64Camera : MonoBehaviour
 {
     [Header("Target Settings")]
-    public Transform target; // The player character to follow
+    public Transform target;
     public float targetHeight = 1.0f; // Height offset from the target's position
+    public PossessionSystem currentBody;
 
     [Header("Camera Distance")]
     public float distance = 5.0f; // Default distance from target
@@ -26,6 +30,7 @@ public class Mario64Camera : MonoBehaviour
     public LayerMask collisionLayers = -1; // Which layers to check for collision
 
     private float x = 0.0f; // Current x rotation
+    private float z = 0.0f; // Current x rotation
     private float y = 0.0f; // Current y rotation
     private float currentDistance; // Current camera distance
     private float desiredDistance; // Desired camera distance
@@ -34,7 +39,8 @@ public class Mario64Camera : MonoBehaviour
 
     void Start()
     {
-        // Initialize angles
+        currentBody = FindObjectOfType<PossessionSystem>();
+
         Vector3 angles = transform.eulerAngles;
         x = angles.y;
         y = angles.x;
@@ -49,8 +55,13 @@ public class Mario64Camera : MonoBehaviour
         Cursor.visible = false;
     }
 
-    void LateUpdate()
+    void TargetTransform(PossessionSystem currentBodyTransform)
     {
+        target = currentBody.currentBodyTransform.transform;
+    }
+    void Update()
+    {
+
         if (!target) return;
 
         // Handle mouse input for rotation
@@ -64,10 +75,9 @@ public class Mario64Camera : MonoBehaviour
         // Handle alignment to target's forward direction
         if (Input.GetKeyDown(KeyCode.C)) // You can change this to any key you prefer
         {
-            AlignToTargetDirection();
+         AlignToTargetDirection();
         }
 
-        // If alignment is in progress, smoothly rotate to target's forward direction
         if (isAligningToTarget)
         {
             AlignCameraToTarget();
@@ -157,6 +167,7 @@ public class Mario64Camera : MonoBehaviour
 
             // Update the x rotation value to match the new rotation
             x = newRotation.eulerAngles.y;
+            z = newRotation.eulerAngles.y;
             y = transform.rotation.eulerAngles.x; // Maintain current vertical angle
 
             // Apply the rotation
@@ -167,6 +178,7 @@ public class Mario64Camera : MonoBehaviour
             // Alignment complete
             isAligningToTarget = false;
             x = targetRotation.eulerAngles.y;
+            z = targetRotation.eulerAngles.y;
         }
     }
 }
